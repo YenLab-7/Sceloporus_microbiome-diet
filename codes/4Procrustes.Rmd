@@ -1,0 +1,667 @@
+---
+title: "Analysis_procrustes"
+author: 
+- name: Mauricio Hernández
+  affiliation: Laboratory of Biotic Interactions, Centro de Investigación en Ciencias
+    Biológicas, Universidad Autónoma de Tlaxcala, Tlaxcala, Mexico
+  email:  delmer.hernandez@unah.edu.hn
+- name: Yendi E. Navarro-Noya
+  affiliation: Laboratory of Biotic Interactions, Centro de Investigación en Ciencias
+    Biológicas, Universidad Autónoma de Tlaxcala, Tlaxcala, Mexico
+  email: yendiebenezer.navarro.n@uatx.mx
+date: "`r format(Sys.time(), '%d - %m - %Y')`"
+output: 
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+    df_print: paged
+---
+
+# IV. MANTEL Y PROCRUSTES ANALYSIS
+
+## Load libraries
+```{r setup, warning=FALSE, message=FALSE}
+library(vegan)
+library(ggplot2)
+library(cowplot)
+library(corrr)
+library(tidyverse)
+library(ape)
+library(hilldiv2)
+```
+
+## Loading files
+
+This analysis is based on 68 samples obtained from both datasets (diet-microbiota)
+```{r}
+metadata <- read.csv("../data/Procrustes_metadata.csv", header = TRUE, check.names = FALSE, 
+                     row.names = 1)
+diet <- read.csv("../data/Procrustes_Diet.csv", header = TRUE, check.names = FALSE, 
+                 row.names = 1) %>% t()
+microbiota <- read.csv("../data/Procrustes_Microbiota.csv", header = TRUE, 
+                       check.names = FALSE, row.names = 1)
+#microbiota <- microbiota %>% filter(rowSums(across(where(is.numeric)))!=0) %>% t()
+
+```
+
+
+## Calculate distances matrices
+
+```{r}
+# Distance matrix of bacterial microbiota
+jaccard_mic_1 <- hillpair(data = microbiota, q = 1) # distance matrix at order q1
+microbiota_jaccard_1 <- as.dist(jaccard_mic_1$S)
+jaccard_mic_2 <- hillpair(data = microbiota, q = 2) # distance matrix at order q1
+microbiota_jaccard_2 <- as.dist(jaccard_mic_2$S)
+
+# Distance matrix of diet
+diet_jaccard <- vegdist(diet, method = "jaccard")
+
+
+```
+
+
+## Mantel test
+```{r}
+set.seed(123)
+# Order q=1
+mantel(diet_jaccard, microbiota_jaccard_1, method = "pearson",
+       permutations = 999)
+
+#Order q=2
+mantel(diet_jaccard, microbiota_jaccard_2, method = "pearson",
+       permutations = 999)
+```
+
+
+
+## Make pcoas 
+
+```{r}
+
+#PcoA of diet
+dietPCoA <- as.data.frame(cmdscale(diet_jaccard))
+plot(dietPCoA)
+
+# PCoA of microbiota q=1
+microbiotaPCoA_1 <- as.data.frame(cmdscale(microbiota_jaccard_1))
+plot(microbiotaPCoA_1)
+
+# PCoA of microbiota q=2
+microbiotaPCoA_2 <- as.data.frame(cmdscale(microbiota_jaccard_2))
+plot(microbiotaPCoA_2)
+```
+
+
+
+## Procrustes analysis of all species
+
+### Procrustes analysis of all species at order q=1
+```{r}
+
+procrust <- procrustes(X = dietPCoA, Y = microbiotaPCoA_1, scale=TRUE,
+                       symmetric = TRUE)
+pro_test <- protest(dietPCoA, microbiotaPCoA_1, permutations = 9999)
+pro_test
+plot(pro_test)
+
+eigen <- sqrt(procrust$svd$d)
+percent_var <- signif(eigen/sum(eigen), 4)*100
+
+beta_pro <- data.frame(procrust$X)
+head(beta_pro)
+trans_pro <- data.frame(procrust$Yrot)
+head(trans_pro)
+beta_pro$UserName <- rownames(beta_pro)
+beta_pro$type <- "Diet"
+beta_pro$seasons<-metadata[,5]
+beta_pro$species<-metadata[,1]
+head(beta_pro)
+
+trans_pro$UsarName <- rownames(trans_pro)
+trans_pro$type <- "Microbiota"
+trans_pro$seasons=metadata[,5]
+trans_pro$species=metadata[,1]
+head(trans_pro)
+
+colnames(trans_pro) <- colnames(beta_pro)
+toplot <- data.frame(rbind(beta_pro,trans_pro))
+pval <- signif(pro_test$signif, 1)
+
+#col1 = rgb(250/255,60/255,60/255)
+#col4 = rgb(0/255,200/255,200/255)
+#col8 = rgb(160/255,0/255,200/255)
+#col10 = rgb(0/255,160/255,255/255)
+# "#999999","#E69F00","#56B4E9", "#009E73","#F0E442
+
+```
+
+
+
+### Graph diet and microbiota
+
+```{r}
+procrustes_new <- ggplot(toplot) +
+  geom_point(size = 1.8, alpha = 0.75, aes(x = V1, y = V2, color = species, 
+                                         shape = type)) + 
+  scale_color_manual(values = c("#999999","#E69F00","#56B4E9",
+                                "#009E73")) +
+  theme_classic() +
+  scale_x_continuous(limits = c(-0.1, 0.3)) +
+  scale_y_continuous(limits = c(-0.2, 0.2)) +
+  geom_line(aes(x= V1, y = V2, group = UserName), 
+            col = "darkgrey", alpha = 0.6, 
+            size = 0.2) +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10, colour = "black"),
+        legend.position = "right",
+        axis.text = element_text(size = 10, colour = "black"),
+        axis.title = element_text(size = 12, colour = "black"),
+        aspect.ratio = 1) +
+  theme(legend.text = element_text(face = "italic")) +
+  guides(color = guide_legend(ncol = 1)) +
+  annotate("text", x = 0.2, y = -0.2, 
+           label = paste0("p-value=", pval), size = 4) +
+  xlab(paste0("PCoA 1 (",percent_var[1],"%)")) +
+  ylab(paste0("PCoA 2 (",percent_var[2],"%)"))
+print(procrustes_new)
+ggsave("../figures/procrustes_diet_q1.jpeg", width = 8.0, height = 4.0, dpi = 300)
+```
+
+### Procrustes analysis of all species at order q=2
+```{r}
+
+procrust <- procrustes(X = dietPCoA, Y = microbiotaPCoA_2, scale=TRUE,
+                       symmetric = TRUE)
+pro_test <- protest(dietPCoA, microbiotaPCoA_2, permutations = 9999)
+pro_test
+plot(pro_test)
+
+eigen <- sqrt(procrust$svd$d)
+percent_var <- signif(eigen/sum(eigen), 4)*100
+
+beta_pro <- data.frame(procrust$X)
+head(beta_pro)
+trans_pro <- data.frame(procrust$Yrot)
+head(trans_pro)
+beta_pro$UserName <- rownames(beta_pro)
+beta_pro$type <- "Diet"
+beta_pro$seasons<-metadata[,5]
+beta_pro$species<-metadata[,1]
+head(beta_pro)
+
+trans_pro$UsarName <- rownames(trans_pro)
+trans_pro$type <- "Microbiota"
+trans_pro$seasons=metadata[,5]
+trans_pro$species=metadata[,1]
+head(trans_pro)
+
+colnames(trans_pro) <- colnames(beta_pro)
+toplot <- data.frame(rbind(beta_pro,trans_pro))
+pval <- signif(pro_test$signif, 1)
+
+```
+
+
+
+### Graph diet and microbiota
+
+```{r}
+procrustes_new <- ggplot(toplot) +
+  geom_point(size = 1.8, alpha = 0.75, aes(x = V1, y = V2, color = species, 
+                                         shape = type)) + 
+  scale_color_manual(values = c("#999999","#E69F00","#56B4E9",
+                                "#009E73")) +
+  theme_classic() +
+  scale_x_continuous(limits = c(-0.1, 0.3)) +
+  scale_y_continuous(limits = c(-0.2, 0.2)) +
+  geom_line(aes(x= V1, y = V2, group = UserName), 
+            col = "darkgrey", alpha = 0.6, 
+            size = 0.2) +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10, colour = "black"),
+        legend.position = "right",
+        axis.text = element_text(size = 10, colour = "black"),
+        axis.title = element_text(size = 12, colour = "black"),
+        aspect.ratio = 1) +
+  theme(legend.text = element_text(face = "italic")) +
+  guides(color = guide_legend(ncol = 1)) +
+  annotate("text", x = 0.2, y = -0.2, 
+           label = paste0("p-value=", pval), size = 4) +
+  xlab(paste0("PCoA 1 (",percent_var[1],"%)")) +
+  ylab(paste0("PCoA 2 (",percent_var[2],"%)"))
+print(procrustes_new)
+ggsave("../figures/procrustes_diet_q2.jpeg", width = 8.0, height = 4.0, dpi = 300)
+```
+
+
+
+## Procrustes analysis by lizard species
+
+Procrsutes by lizard species were done at q=1 as similar patterns were observed in the general procrustes at q=2.
+
+### Procrustes of  Sceloporus aeneus
+
+```{r}
+
+#loading data
+aeneus_metadata <- subset(metadata, Species_Scel == "Sceloporus aeneus")
+diet_aeneus <- read.csv("../data/Proc_Diet_aeneus.csv", header = TRUE, check.names = FALSE, 
+                        row.names = 1) %>% t()
+microbiota_aeneus <- read.csv("../data/Proc_Mic_aeneus.csv", header = TRUE, 
+                              check.names = FALSE, row.names = 1)
+
+# Distance matrix
+jaccard_mic_a <- hillpair(data = microbiota_aeneus, q = 1)
+microbiota_jaccard_a <- as.dist(jaccard_mic_a$S)
+
+# Absence/presence data frame - Jaccard distance
+diet_jaccard_a <- vegdist(diet_aeneus, method = "jaccard")
+diet_jaccard_a <- as.dist(diet_jaccard_a)
+
+# Mantel test
+
+set.seed(123)
+mantel(diet_jaccard_a, microbiota_jaccard_a, method = "pearson",
+       permutations = 999)
+
+
+# Make pcoas
+
+dietPCoA_a <- as.data.frame(cmdscale(diet_jaccard_a))
+plot(dietPCoA_a)
+microbiotaPCoA_a <- as.data.frame(cmdscale(microbiota_jaccard_a))
+plot(microbiotaPCoA_a)
+
+
+# Procrustes analysis
+
+procrust_a <- procrustes(X = dietPCoA_a, Y = microbiotaPCoA_a, scale=TRUE,
+                         symmetric = TRUE)
+pro_test_a <- protest(dietPCoA_a, microbiotaPCoA_a, permutations = 9999)
+pro_test_a
+plot(pro_test_a)
+
+eigen_a <- sqrt(procrust_a$svd$d)
+percent_var_a <- signif(eigen_a/sum(eigen_a), 4)*100
+
+beta_pro_a <- data.frame(procrust_a$X)
+head(beta_pro_a)
+trans_pro_a <- data.frame(procrust_a$Yrot)
+head(trans_pro_a)
+beta_pro_a$UserName <- rownames(beta_pro_a)
+beta_pro_a$type <- "Diet"
+beta_pro_a$seasons <- aeneus_metadata[,5]
+beta_pro_a$species <- aeneus_metadata[,1]
+head(beta_pro_a)
+
+trans_pro_a$UsarName <- rownames(trans_pro_a)
+trans_pro_a$type <- "Microbiota"
+trans_pro_a$seasons <- aeneus_metadata[,5]
+trans_pro_a$species <- aeneus_metadata[,1]
+head(trans_pro_a)
+
+colnames(trans_pro_a) <- colnames(beta_pro_a)
+toplot_a <- data.frame(rbind(beta_pro_a, trans_pro_a))
+pval_a <- signif(pro_test_a$signif, 1)
+
+
+# Graph diet and microbiota
+
+procreustes_aeneus_new <- ggplot(toplot_a) +
+  geom_point(size = 2, alpha = 0.75, aes(x = V1, y = V2, color = species, 
+                                         shape = type)) + 
+  scale_color_manual(values = c("#999999")) +
+  theme_classic() +
+  scale_x_continuous(limits = c(-0.2, 0.4)) +
+  scale_y_continuous(limits = c(-0.2, 0.4)) +
+  geom_line(aes(x = V1, y = V2, group = UserName), 
+            col = "darkgrey", alpha = 0.6, 
+            size = 0.2) +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10, colour = "black"),
+        legend.position = "right",
+        axis.text = element_text(size = 10, colour = "black"),
+        axis.title = element_text(size = 12, colour = "black"),
+        aspect.ratio = 1) +
+  theme(legend.text = element_text(face = "italic")) +
+  guides(color = guide_legend(ncol = 1)) +
+  #annotate("text", x = 0.07, y = -0.13, label = paste0("p-value=", pval_a), 
+  #         size = 4) +
+  xlab(paste0("PCoA 1 (",percent_var_a[1],"%)")) +
+  ylab(paste0("PCoA 2 (",percent_var_a[2],"%)"))
+print(procreustes_aeneus_new)
+ggsave("../figures/procreustes_aeneus_new.jpeg", width = 8.0, height = 4.0, dpi = 300)
+```
+
+
+### Procrustes of Sceloporus bicanthalis 
+```{r}
+
+#Loading data
+bica_metadata <- subset(metadata, Species_Scel == "Sceloporus bicanthalis")
+diet_bica <- read.csv("../data/Proc_Diet_bica.csv", header = TRUE, check.names = FALSE, 
+                      row.names = 1) %>% t()
+microbiota_bica <- read.csv("../data/Proc_Mic_bica.csv", header = TRUE, 
+                            check.names = FALSE, row.names = 1)
+
+# Distance matrix
+jaccard_mic_b <- hillpair(data = microbiota_bica, q = 1)
+microbiota_jaccard_b <- as.dist(jaccard_mic_b$S)
+
+# Absence/presence data frame - Jaccard distance
+diet_jaccard_b <- vegdist(diet_bica, method = "jaccard")
+diet_jaccard_b <- as.dist(diet_jaccard_b)
+
+
+# Mantel test
+set.seed(123)
+mantel(diet_jaccard_b, microbiota_jaccard_b, method = "pearson",
+       permutations = 999)
+
+# Make pcoas
+dietPCoA_b <- as.data.frame(cmdscale(diet_jaccard_b))
+plot(dietPCoA_b)
+
+microbiotaPCoA_b <- as.data.frame(cmdscale(microbiota_jaccard_b))
+plot(microbiotaPCoA_b)
+
+# Procrustes analysis
+procrust_b <- procrustes(X = dietPCoA_b, Y = microbiotaPCoA_b, scale=TRUE,
+                         symmetric = TRUE)
+pro_test_b <- protest(dietPCoA_b, microbiotaPCoA_b, permutations = 9999)
+pro_test_b
+plot(pro_test_b)
+
+eigen_b <- sqrt(procrust_b$svd$d)
+percent_var_b <- signif(eigen_b/sum(eigen_b), 4)*100
+
+beta_pro_b <- data.frame(procrust_b$X)
+head(beta_pro_b)
+trans_pro_b <- data.frame(procrust_b$Yrot)
+head(trans_pro_b)
+beta_pro_b$UserName <- rownames(beta_pro_b)
+beta_pro_b$type <- "Diet"
+beta_pro_b$seasons <- bica_metadata[,5]
+beta_pro_b$species <- bica_metadata[,1]
+head(beta_pro_b)
+
+trans_pro_b$UsarName <- rownames(trans_pro_b)
+trans_pro_b$type <- "Microbiota"
+trans_pro_b$seasons <- bica_metadata[,5]
+trans_pro_b$species <- bica_metadata[,1]
+head(trans_pro_b)
+
+colnames(trans_pro_b) <- colnames(beta_pro_b)
+toplot_b <- data.frame(rbind(beta_pro_b, trans_pro_b))
+pval_b <- signif(pro_test_b$signif, 1)
+
+# graph diet and microbiota
+procreustes_bica_new <- ggplot(toplot_b) +
+  geom_point(size = 2, alpha = 0.75, aes(x = V1, y = V2, color = species, 
+                                         shape = type)) + 
+  scale_color_manual(values = c("#E69F00")) +
+  theme_classic() +
+  #scale_x_continuous(limits = c(-0.25, 0.4)) +
+  #scale_y_continuous(limits = c(-0.2, 0.25)) +
+  geom_line(aes(x = V1, y = V2, group = UserName), 
+            col = "darkgrey", alpha = 0.6, 
+            size = 0.2) +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10, colour = "black"),
+        legend.position = "right",
+        axis.text = element_text(size = 10, colour = "black"),
+        axis.title = element_text(size = 12, colour = "black"),
+        aspect.ratio = 1) +
+  theme(legend.text = element_text(face = "italic")) +
+  guides(color = guide_legend(ncol = 1)) +
+  #annotate("text", x = 0.07, y = -0.28, label = paste0("p-value=", pval_b), 
+  #        size = 4) +
+  xlab(paste0("PCoA 1 (",percent_var_b[1],"%)")) +
+  ylab(paste0("PCoA 2 (",percent_var_b[2],"%)"))
+print(procreustes_bica_new)
+ggsave("../figures/procreustes_bica_new.jpeg", width = 8.0, height = 4.0, dpi = 300)
+
+```
+
+
+
+### Procrustes: Sceloporus grammicus
+
+```{r}
+
+# Loading data
+
+gram_metadata <- subset(metadata, Species_Scel == "Sceloporus grammicus")
+diet_gram <- read.csv("../data/Proc_Diet_gram.csv", header = TRUE, check.names = FALSE, 
+                      row.names = 1) %>% t()
+microbiota_gram <- read.csv("../data/Proc_Mic_gram.csv", header = TRUE, 
+                            check.names = FALSE, row.names = 1)
+
+# Distance matrix
+jaccard_mic_g <- hillpair(data = microbiota_gram, q = 1)
+microbiota_jaccard_g <- as.dist(jaccard_mic_g$S)
+
+# Absence/presence data frame - Jaccard distance
+diet_jaccard_g <- vegdist(diet_gram, method = "jaccard")
+diet_jaccard_g <- as.dist(diet_jaccard_g)
+
+# Mantel test
+set.seed(123)
+mantel(diet_jaccard_g, microbiota_jaccard_g, method = "pearson",
+       permutations = 999)
+
+# Make pcoas
+dietPCoA_g <- as.data.frame(cmdscale(diet_jaccard_g))
+plot(dietPCoA_g)
+
+microbiotaPCoA_g <- as.data.frame(cmdscale(microbiota_jaccard_g))
+plot(microbiotaPCoA_g)
+
+# Procrustes analysis
+procrust_g <- procrustes(X = dietPCoA_g, Y = microbiotaPCoA_g, scale=TRUE,
+                         symmetric = TRUE)
+pro_test_g <- protest(dietPCoA_g, microbiotaPCoA_g, permutations = 9999)
+pro_test_g
+plot(pro_test_g)
+
+eigen_g <- sqrt(procrust_g$svd$d)
+percent_var_g <- signif(eigen_g/sum(eigen_g), 4)*100
+
+beta_pro_g <- data.frame(procrust_g$X)
+head(beta_pro_g)
+trans_pro_g <- data.frame(procrust_g$Yrot)
+head(trans_pro_g)
+beta_pro_g$UserName <- rownames(beta_pro_g)
+beta_pro_g$type <- "Diet"
+beta_pro_g$seasons <- gram_metadata[,5]
+beta_pro_g$species <- gram_metadata[,1]
+head(beta_pro_g)
+
+trans_pro_g$UsarName <- rownames(trans_pro_g)
+trans_pro_g$type <- "Microbiota"
+trans_pro_g$seasons <- gram_metadata[,5]
+trans_pro_g$species <- gram_metadata[,1]
+head(trans_pro_g)
+
+colnames(trans_pro_g) <- colnames(beta_pro_g)
+toplot_g <- data.frame(rbind(beta_pro_g, trans_pro_g))
+pval_g <- signif(pro_test_g$signif, 1)
+
+# Graph diet and microbiota
+procreustes_gram_new <- ggplot(toplot_g) +
+  geom_point(size = 2, alpha = 0.75, aes(x = V1, y = V2, color = species, 
+                                         shape = type)) + 
+  scale_color_manual(values = c("#56B4E9")) +
+  theme_classic() +
+  #scale_x_continuous(limits = c(-0.25, 0.4)) +
+  #scale_y_continuous(limits = c(-0.2, 0.25)) +
+  geom_line(aes(x = V1, y = V2, group = UserName), 
+            col = "darkgrey", alpha = 0.6, 
+            size = 0.2) +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10, colour = "black"),
+        legend.position = "right",
+        axis.text = element_text(size = 10, colour = "black"),
+        axis.title = element_text(size = 12, colour = "black"),
+        aspect.ratio = 1) +
+  theme(legend.text = element_text(face = "italic")) +
+  guides(color = guide_legend(ncol = 1)) +
+  #annotate("text", x = 0.07, y = -0.28, label = paste0("p-value=", pval_b), 
+  #        size = 4) +
+  xlab(paste0("PCoA 1 (",percent_var_g[1],"%)")) +
+  ylab(paste0("PCoA 2 (",percent_var_g[2],"%)"))
+print(procreustes_gram_new)
+ggsave("../figures/procreustes_gram_new.jpeg", width = 8.0, height = 4.0, dpi = 300)
+
+```
+
+
+
+### Procrustes: Sceloporus spinosus #
+```{r}
+
+
+spi_metadata <- subset(metadata, Species_Scel == "Sceloporus spinosus")
+diet_spi <- read.csv("../data/Proc_Diet_spi.csv", header = TRUE, check.names = FALSE, 
+                     row.names = 1) %>% t()
+microbiota_spi <- read.csv("../data/Proc_Mic_spi.csv", header = TRUE, 
+                           check.names = FALSE, row.names = 1)
+
+# Distance matrix
+jaccard_mic_s <- hillpair(data = microbiota_spi, q = 1)
+microbiota_jaccard_s <- as.dist(jaccard_mic_s$S)
+
+# Absence/presence data frame - Jaccard distance
+diet_jaccard_s <- vegdist(diet_spi, method = "jaccard")
+diet_jaccard_s <- as.dist(diet_jaccard_s)
+
+
+# Mantel test 
+set.seed(123)
+mantel(diet_jaccard_s, microbiota_jaccard_s, method = "pearson",
+       permutations = 999)
+
+# Make pcoas
+dietPCoA_s <- as.data.frame(cmdscale(diet_jaccard_s))
+plot(dietPCoA_s)
+
+microbiotaPCoA_s <- as.data.frame(cmdscale(microbiota_jaccard_s))
+plot(microbiotaPCoA_s)
+
+# Procrustes analysis
+procrust_s <- procrustes(X = dietPCoA_s, Y = microbiotaPCoA_s, scale=TRUE,
+                         symmetric = TRUE)
+pro_test_s <- protest(dietPCoA_s, microbiotaPCoA_s, permutations = 9999)
+pro_test_s
+plot(pro_test_s)
+
+eigen_s <- sqrt(procrust_s$svd$d)
+percent_var_s <- signif(eigen_s/sum(eigen_s), 4)*100
+
+beta_pro_s <- data.frame(procrust_s$X)
+head(beta_pro_s)
+trans_pro_s <- data.frame(procrust_s$Yrot)
+head(trans_pro_s)
+beta_pro_s$UserName <- rownames(beta_pro_s)
+beta_pro_s$type <- "Diet"
+beta_pro_s$seasons <- spi_metadata[,5]
+beta_pro_s$species <- spi_metadata[,1]
+head(beta_pro_s)
+
+trans_pro_s$UsarName <- rownames(trans_pro_s)
+trans_pro_s$type <- "Microbiota"
+trans_pro_s$seasons <- spi_metadata[,5]
+trans_pro_s$species <- spi_metadata[,1]
+head(trans_pro_s)
+
+colnames(trans_pro_s) <- colnames(beta_pro_s)
+toplot_s <- data.frame(rbind(beta_pro_s, trans_pro_s))
+pval_s <- signif(pro_test_s$signif, 1)
+
+# Graph diet and microbiota
+procreustes_spi_new <- ggplot(toplot_s) +
+  geom_point(size = 2, alpha = 0.75, aes(x = V1, y = V2, color = species, 
+                                         shape = type)) + 
+  scale_color_manual(values = c("#40A175")) +
+  theme_classic() +
+  #scale_x_continuous(limits = c(-0.25, 0.4)) +
+  #scale_y_continuous(limits = c(-0.2, 0.25)) +
+  geom_line(aes(x = V1, y = V2, group = UserName), 
+            col = "darkgrey", alpha = 0.6, 
+            size = 0.2) +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10, colour = "black"),
+        legend.position = "right",
+        axis.text = element_text(size = 10, colour = "black"),
+        axis.title = element_text(size = 12, colour = "black"),
+        aspect.ratio = 1) +
+  theme(legend.text = element_text(face = "italic")) +
+  guides(color = guide_legend(ncol = 1)) +
+  #annotate("text", x = 0.07, y = -0.28, label = paste0("p-value=", pval_s), 
+  #        size = 4) +
+  xlab(paste0("PCoA 1 (",percent_var_s[1],"%)")) +
+  ylab(paste0("PCoA 2 (",percent_var_s[2],"%)"))
+print(procreustes_spi_new)
+ggsave("../figures/procreustes_spi_new.jpeg", width = 8.0, height = 4.0, dpi = 300)
+```
+
+## Procustes and mantel analysis considering phylogenetic comosition of diet
+
+```{r, eval=FALSE}
+tree.diet <- read.tree("../data/tree.nwk")
+comm<-(diet)
+IDs= colnames(comm)   # para obtener los nombres de las sp
+tree.diet= ape::rtree(n=ncol(diet), tip.label = paste0(IDs))  # tener el árbol enraizado, con los nombres de los sitios y los nombres de las sp.
+
+
+hill_phylo_parti_pairwise(comm,tree.diet, q = 0, show_warning = F) 
+
+```
+  
+```{r, eval=FALSE}  
+# Loading phylogenetic tree
+phy_tree <- read_tree("../data/tree.nwk")
+
+# Creating phyloseq object
+SAM <- sample_data(metadata)
+OTU <- otu_table(diet, taxa_are_rows=F)
+phylo_physeq = phyloseq(OTU, SAM, phy_tree)
+
+#Calculating phylogenetic distance
+diet_dist_phy = distance(phylo_physeq, method = "uunifrac") %>% as.dist
+
+```
+
+```{r, eval=FALSE}
+set.seed(123)
+# Order q=1
+mantel(diet_dist_phy, microbiota_jaccard_1, method = "pearson",
+       permutations = 999)
+
+#Order q=2
+mantel(diet_dist_phy, microbiota_jaccard_2, method = "pearson",
+       permutations = 999)
+```
+

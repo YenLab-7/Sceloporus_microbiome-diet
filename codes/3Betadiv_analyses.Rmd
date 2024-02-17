@@ -1,0 +1,328 @@
+---
+title: "Beta_diversity_analysis"
+author: 
+- name: Mauricio Hernández
+  affiliation: Laboratory of Biotic Interactions, Centro de Investigación en Ciencias
+    Biológicas, Universidad Autónoma de Tlaxcala, Tlaxcala, Mexico
+  email:  delmer.hernandez@unah.edu.hn
+- name: Yendi E. Navarro-Noya
+  affiliation: Laboratory of Biotic Interactions, Centro de Investigación en Ciencias
+    Biológicas, Universidad Autónoma de Tlaxcala, Tlaxcala, Mexico
+  email: yendiebenezer.navarro.n@uatx.mx
+date: "`r format(Sys.time(), '%d - %m - %Y')`"
+output: 
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+    df_print: paged
+---
+
+# III. BETA DIVERSITY ANALYSES
+
+### Install hilldiv2
+```{r, eval=FALSE}
+install.packages("devtools")
+library(devtools)
+install_github("anttonalberdi/hilldiv2")
+```
+
+##  Loading libraries
+```{r, warning=FALSE, message=FALSE}
+library(hilldiv2)
+library(tidyverse)
+library(vegan)
+library(phytools)
+library(pairwiseAdonis)
+library(reshape2)
+library(ggpubr)
+library(rstatix)
+```
+
+```{r}
+# Load files
+otutable <- read.csv("../data/feature_table.csv", row.names = 1)
+Metadata <- read.csv("../data/metadata_beta.csv")
+```
+
+
+## Calculate beta diversity
+
+```{r}
+hill_pair_dis <- hillpair(data = otutable, q=c(1,2))
+names(hill_pair_dis)
+head(hill_pair_dis$q1S)
+```
+- S (Jaccard-type turnover): it quantifies the normalised species turnover rate in a sample relative to the total pool of samples (i.e., gamma diversity).
+- V (Sørensen-type turnover): it quantifies the normalised species turnover rate in a sample relative to one sample (i.e., alpha diversity).
+- U (Jaccard-type overlap-complement): it quantifies the proportion of non-shared species in the total pool of samples. Therefore, this metric quantifies dissimilarity from the perspective of the pool of samples.
+- C (Sørensen-type overlap-complement): it quantifies the effective average proportion of non-shared OTUs/ASVs/MAGs in samples. Therefore, this metric quantifies dissimilarity from the perspective of a single sample.
+
+## Taxonomic beta diversity  at order q1 #
+
+```{r, warning=FALSE, message=FALSE, cache.comments=FALSE, include=FALSE}
+hill_pair_dis_nmds <- hill_pair_dis$q1S %>% #select the distance object based on dissimilarity metric S
+  metaMDS(.,trymax = 500, k = 2, verbosity = FALSE) %>%
+  vegan:::scores.metaMDS() %>%
+  as_tibble(., rownames = "sample")
+
+hill_pair_dis_nmds <- hill_pair_dis_nmds %>%
+  left_join(Metadata, by = join_by(sample == SampleID)) %>%
+  group_by(Species, Season) %>%
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup()
+```
+
+```{r, eval=FALSE}
+hill_pair_dis_nmds <- hill_pair_dis$q1S %>% #select the distance object based on dissimilarity metric S
+  metaMDS(.,trymax = 500, k = 2, verbosity = FALSE) %>%
+  vegan:::scores.metaMDS() %>%
+  as_tibble(., rownames = "sample")
+
+hill_pair_dis_nmds <- hill_pair_dis_nmds %>%
+  left_join(Metadata, by = join_by(sample == SampleID)) %>%
+  group_by(Species, Season) %>%
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup()
+```
+
+### Plot ordination q1
+
+
+```{r}
+NMDS_Plot_q1 <- ggplot(hill_pair_dis_nmds, aes(x = NMDS1, y = NMDS2, 
+                                               color = Species, shape = Season)) +
+  geom_point(size = 2) +
+  geom_segment(aes(x = x_cen, y = y_cen, xend = NMDS1, yend = NMDS2), alpha = 0.2) +
+  theme(legend.position = "right",
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_blank()) +
+  theme_classic() +
+  theme(legend.text = element_text(face = "italic")) +
+  scale_colour_manual(values = c("#999999","#E69F00","#56B4E9","#009E73","#F0E442"))
+print(NMDS_Plot_q1)
+ggsave("../figures/NMDS_Plot_q1.jpeg", width = 8.0, height = 4.0, dpi = 300)
+```
+
+### Run PERMANONA
+```{r}
+set.seed(123)
+dist <- hill_pair_dis$q1S
+perm_q1 <- adonis2(dist ~ Species*Season+Elevation+SVL+SeqDepth,
+                   data = Metadata, permutations = 999)
+print(perm_q1)
+```
+
+
+
+### Run pairwise perMANOVA
+```{r}
+Metadata$species_season <- paste(Metadata$Species, Metadata$Season, sep = "_")
+pw_adonis_q1<-pairwise.adonis(dist,factors=Metadata$species_season)
+
+intrasp_compar <- pw_adonis_q1[grep("^([^_]+)_Dry vs \\1_Rainy", pw_adonis_q1$pairs), ]
+print(intrasp_compar)
+```
+
+### Plot of intraspecific distances
+
+```{r}
+compar_intrasp<- c("Sceloporus grammicus_Dry_vs_Sceloporus grammicus_Rainy", "Sceloporus aeneus_Dry_vs_Sceloporus aeneus_Rainy", "Sceloporus bicanthalis_Dry_vs_Sceloporus bicanthalis_Rainy", "Sceloporus spinosus_Dry_vs_Sceloporus spinosus_Rainy")
+
+dist.q1 <- hill_pair_dis$q1S %>% as.matrix()
+
+#convert matrix into df
+dist.q1[lower.tri(dist.q1)] <- NA
+dist.q1.df <- as.matrix(dist.q1) %>% melt(
+  varnames = c("site1", "site2"))%>% drop_na() %>% filter(!value==0)
+
+#Join beta diversity vakues with metadata
+dist.q1.meta<- dist.q1.df %>% 
+  inner_join(Metadata, by = c("site1"="SampleID")) %>% 
+  inner_join(Metadata, by = c("site2"="SampleID"))
+
+#Subset to obtain specific comparisons 
+dist.q1.meta.filt <- dist.q1.meta %>% unite(
+  "compar_intraspp", c("species_season.x", "species_season.y"), sep="_vs_", remove=F) %>% filter(compar_intraspp %in% compar_intrasp) 
+
+# Plotting
+
+#Setting the order of the species
+dist.q1.meta.filt$Species.order<- factor(dist.q1.meta.filt$Species.x,
+                                         levels = c("Sceloporus aeneus", "Sceloporus bicanthalis", "Sceloporus grammicus", "Sceloporus spinosus"))
+
+# Kruskal wallis test
+set.seed(1234)
+kruskal.t.q1 <- dist.q1.meta.filt %>% kruskal_test(value ~ Species.order)
+Post_hoc.q1  <- dist.q1.meta.filt %>% dunn_test(value ~ Species.order, p.adjust.method = "bonferroni") 
+Post_hoc.q1 <- Post_hoc.q1 %>% 
+  add_xy_position(x = "Species.order")
+
+# Boxplot
+q1_intrasp<-dist.q1.meta.filt %>% 
+  ggboxplot(x = "Species.order", y="value", fill = "Species.order")+
+  ylab("Seasonal turnover at q=1")+
+  xlab(element_blank())+
+  scale_fill_manual(values = c("#999999","#E69F00","#56B4E9","#009E73","#F0E442"))+
+      theme_classic() +
+   theme(legend.position = "right",
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_blank(),
+        legend.title = element_blank()) +
+  theme(legend.text = element_text(face = "italic"))+
+  stat_pvalue_manual(Post_hoc.q1, hide.ns = TRUE) +
+  labs(
+    subtitle = get_test_label(kruskal.t.q1, detailed = TRUE),
+    caption = get_pwc_label(Post_hoc.q1))
+  
+q1_intrasp
+ggsave("../figures/beta_div_intrasp_q1.jpeg", width = 5.0, height = 4.0, dpi = 300)
+
+
+```      
+
+### Run BETADISPER analysis
+```{r}
+disp.species = betadisper(dist, Metadata$Species)
+anova(disp.species)
+permutest(disp.species)
+permutest(disp.species, pairwise = TRUE, permutations = 999)
+boxplot(disp.species)
+```
+
+
+
+## Taxonomic beta diversity  at order q2
+
+```{r, include=FALSE}
+hill_pair_dis_nmds_q2 <- hill_pair_dis$q2S %>% #select the distance object based on dissimilarity metric S
+  metaMDS(.,trymax = 500, k = 2, verbosity = FALSE) %>%
+  vegan:::scores.metaMDS() %>%
+  as_tibble(., rownames = "sample")
+
+hill_pair_dis_nmds_2 <- hill_pair_dis_nmds_q2 %>%
+  left_join(Metadata, by = join_by(sample == SampleID)) %>%
+  group_by(Species, Season) %>%
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup()
+```
+
+```{r, eval=FALSE}
+hill_pair_dis_nmds_q2 <- hill_pair_dis$q2S %>% #select the distance object based on dissimilarity metric S
+  metaMDS(.,trymax = 500, k = 2, verbosity = FALSE) %>%
+  vegan:::scores.metaMDS() %>%
+  as_tibble(., rownames = "sample")
+
+hill_pair_dis_nmds_2 <- hill_pair_dis_nmds_q2 %>%
+  left_join(Metadata, by = join_by(sample == SampleID)) %>%
+  group_by(Species, Season) %>%
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup()
+```
+
+### Plot ordination q2
+
+```{r}
+NMDS_Plot_q2 <- ggplot(hill_pair_dis_nmds_2, aes(x = NMDS1, y = NMDS2, 
+                                                  color = Species, shape = Season)) +
+  geom_point(size = 2) +
+  geom_segment(aes(x = x_cen, y = y_cen, xend = NMDS1, yend = NMDS2), alpha = 0.2) +
+  theme(legend.position = "right",
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_blank()) +
+  theme_classic() +
+  theme(legend.text = element_text(face = "italic")) +
+  scale_colour_manual(values = c("#999999","#E69F00","#56B4E9","#009E73","#F0E442"))
+print(NMDS_Plot_q2)
+ggsave("../figures/NMDS_Plot_q2.jpeg", width = 8.0, height = 4.0, dpi = 300)
+```
+
+### Run PERMANOVA
+
+```{r}
+
+set.seed(123)
+dist2 <- hill_pair_dis$q2S
+perm_q2 <- adonis2(dist2 ~ Species*Season+Elevation+SVL+SeqDepth,
+                   data = Metadata, permutations = 999)
+print(perm_q2)
+```
+
+### Run pairwise perMANOVA
+```{r}
+
+pw_adonis_q2<-pairwise.adonis(dist2,factors=Metadata$species_season)
+intrasp_compar_q2 <- pw_adonis_q2[grep("^([^_]+)_Dry vs \\1_Rainy", pw_adonis_q2$pairs), ]
+print(intrasp_compar_q2)
+```
+
+### Plot of intraspecific distances
+
+```{r}
+compar_intrasp<- c("Sceloporus grammicus_Dry_vs_Sceloporus grammicus_Rainy", "Sceloporus aeneus_Dry_vs_Sceloporus aeneus_Rainy", "Sceloporus bicanthalis_Dry_vs_Sceloporus bicanthalis_Rainy", "Sceloporus spinosus_Dry_vs_Sceloporus spinosus_Rainy")
+
+dist.q2 <- hill_pair_dis$q2S %>% as.matrix()
+
+#convert matrix into df
+dist.q2[lower.tri(dist.q2)] <- NA
+dist.q2.df <- as.matrix(dist.q2) %>% melt(
+  varnames = c("site1", "site2"))%>% drop_na() %>% filter(!value==0)
+
+#Join beta diversity vakues with metadata
+dist.q2.meta<- dist.q2.df %>% 
+  inner_join(Metadata, by = c("site1"="SampleID")) %>% 
+  inner_join(Metadata, by = c("site2"="SampleID"))
+
+#Subset to obtain specific comparisons 
+dist.q2.meta.filt <- dist.q2.meta %>% unite(
+  "compar_intraspp", c("species_season.x", "species_season.y"), sep="_vs_", remove=F) %>% filter(compar_intraspp %in% compar_intrasp) 
+
+# Plotting
+
+#Setting the order of the species
+dist.q2.meta.filt$Species.order<- factor(dist.q2.meta.filt$Species.x,
+                                         levels = c("Sceloporus aeneus", "Sceloporus bicanthalis", "Sceloporus grammicus", "Sceloporus spinosus"))
+
+# Kruskal wallis test
+set.seed(1234)
+kruskal.t.q2 <- dist.q2.meta.filt %>% kruskal_test(value ~ Species.order)
+Post_hoc.q2  <- dist.q2.meta.filt %>% dunn_test(value ~ Species.order, p.adjust.method = "bonferroni") 
+Post_hoc.q2 <- Post_hoc.q2 %>% 
+  add_xy_position(x = "Species.order")
+
+q2_intrasp<-dist.q2.meta.filt %>% 
+ ggboxplot(x = "Species.order", y="value", fill = "Species.order")+
+  ylab("Seasonal turnover at q=2")+
+  xlab(element_blank())+
+  scale_fill_manual(values = c("#999999","#E69F00","#56B4E9","#009E73","#F0E442"))+
+      theme_classic() +
+   theme(legend.position = "right",
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_blank(),
+        legend.title = element_blank()) +
+  theme(legend.text = element_text(face = "italic"))+
+  stat_pvalue_manual(Post_hoc.q2, hide.ns = TRUE) +
+  labs(
+    subtitle = get_test_label(kruskal.t.q2, detailed = TRUE),
+    caption = get_pwc_label(Post_hoc.q2))
+  
+q2_intrasp
+ggsave("../figures/beta_div_intrasp_q2.jpeg", width = 5.0, height = 4.0, dpi = 300)
+
+```                        
+                        
+                        
+### Run BETADISPER analysis
+```{r}
+disp.species_q2 = betadisper(dist2, Metadata$Species)
+anova(disp.species_q2)
+permutest(disp.species_q2)
+permutest(disp.species_q2, pairwise = TRUE, permutations = 999)
+boxplot(disp.species_q2)
+```

@@ -1,0 +1,700 @@
+---
+title: "Alpha_div_tax"
+author: 
+- name: Mauricio Hernández
+  affiliation: Laboratory of Biotic Interactions, Centro de Investigación en Ciencias
+    Biológicas, Universidad Autónoma de Tlaxcala, Tlaxcala, Mexico
+  email:  delmer.hernandez@unah.edu.hn
+- name: Stephanie Hereira-Pacheco
+  affiliation: Laboratory of Biotic Interactions, Centro de Investigación en Ciencias
+    Biológicas, Universidad Autónoma de Tlaxcala, Tlaxcala, Mexico
+  email: shereirap@gmail.com
+- name: Sergio Ancona
+  affiliation: Departamento de Ecología Evolutiva, Instituto de Ecología, Universidad Nacional Autónoma de México
+  email:  sergio.ancona@iecologia.unam.mx
+- name: Yendi E. Navarro-Noya
+  affiliation: Laboratory of Biotic Interactions, Centro de Investigación en Ciencias
+    Biológicas, Universidad Autónoma de Tlaxcala, Tlaxcala, Mexico
+  email: yendiebenezer.navarro.n@uatx.mx
+date: "`r format(Sys.time(), '%d - %m - %Y')`"
+output: 
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# II. ALPHA DIVERSITY ANALYSES
+
+## Loading libraries
+```{r, warning=FALSE, message=FALSE}
+library(hilldiv)
+library(ggplot2)
+library(ggpubr)
+library(reshape2)
+library(tidyverse)
+library(lme4)
+library(car)
+library(arm)
+library(predictmeans)
+library(AER)
+library(visreg)
+library(FSA)
+library(rstatix)
+library(sjPlot)
+library(effects)
+library(cowplot)
+```
+
+## Calculating Hill numbers with hilldiv R package
+
+```{r, eval=FALSE}
+otu_table <- read.csv("feature_table.csv", header = TRUE, row.names = 1)
+q0 <- hill_div(otu_table, qvalue = 0)
+q1 <- hill_div(otu_table, qvalue = 1)
+q2 <- hill_div(otu_table, qvalue = 2)
+q012 <- cbind(q0, q1, q2)
+write.table(q012, file="../data/q012_hilldiv.txt", sep = "\t")
+```
+
+## Preparing the data
+
+### Load files
+```{r, highlight=TRUE}
+richness_q012 <- read.csv("../data/Hill_numbers_q012.csv", header = TRUE) %>% 
+  dplyr::select(SampleID, q0, q1, q2)
+metadata <- read.csv("../data/metadata.csv", header = TRUE, check.names = F)
+Micro_div <- richness_q012 %>% 
+  inner_join(metadata, by = c("SampleID"="SampleID"))
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, out.width=8}
+DT::datatable(
+  Micro_div,
+  fillContainer = FALSE, 
+  filter="top")
+```
+
+### Declare factors
+```{r}
+SPECIES <- as.factor(Micro_div$Species_Scel) # Four Sceloporus lizard species
+SEASON <- as.factor(Micro_div$Season) # Dry and Rainy
+SEX <- as.factor(Micro_div$Sex) # Male and Female
+```
+
+
+### Standardize continous independent variables
+```{r}
+SVL <- rescale(Micro_div$SVL, binary.inputs = "center") # Snout–vent length measured in mm.
+ELEVATION <- rescale(Micro_div$Elevation, binary.inputs = "center") # Taken as m a.s.l. 
+SEQDEPTH <- rescale(Micro_div$SeqDepth, binary.inputs = "center")
+```
+
+## Evaluate whether sex variable influence on gut microbiota diversity (q=1)
+
+```{r}
+# Paired test (Wilcoxon test, q1) 
+
+# Sceloporus aeneus
+aeneus_fem_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus aeneus" & 
+                            Sex == "Female", q1, drop = TRUE)
+aeneus_male_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus aeneus" & 
+                             Sex == "Male", q1, drop = TRUE)
+aeneus_FemMale_GutMic <- wilcox.test(x= aeneus_fem_GutMic, y= aeneus_male_GutMic)
+aeneus_FemMale_GutMic
+
+# Sceloporus bicanthalis
+bica_fem_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus bicanthalis" & 
+                          Sex == "Female", q1, drop = TRUE)
+bica_male_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus bicanthalis" & 
+                           Sex == "Male", q1, drop = TRUE)
+bica_FemMale_GutMic <- wilcox.test(x= bica_fem_GutMic, y= bica_male_GutMic)
+bica_FemMale_GutMic
+
+# Sceloporus grammicus
+gram_fem_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus grammicus" & 
+                          Sex == "Female", q1, drop = TRUE)
+gram_male_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus grammicus" & 
+                           Sex == "Male", q1, drop = TRUE)
+gram_FemMale_GutMic <- wilcox.test(x= gram_fem_GutMic, y= gram_male_GutMic)
+gram_FemMale_GutMic
+
+# Sceloporus spinosus
+spi_fem_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus spinosus" & 
+                         Sex == "Female", q1, drop = TRUE)
+spi_male_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus spinosus" & 
+                          Sex == "Male", q1, drop = TRUE)
+spi_FemMale_GutMic <- wilcox.test(x= spi_fem_GutMic, y= spi_male_GutMic)
+spi_FemMale_GutMic
+
+```
+
+
+## Differences in  snout vent length (SVL) among lizard species
+```{r}
+set.seed(1234)
+Data_SVL <- subset(Micro_div, select = c(Species_Scel, SVL))
+kruskal.t <- Data_SVL %>% kruskal_test(SVL ~ Species_Scel)
+kruskal.t
+Post_hoc  <- Data_SVL %>% dunn_test(SVL ~ Species_Scel, p.adjust.method = "bonferroni") 
+Post_hoc
+
+```
+
+
+
+### Visualization: box plots with p-values
+```{r}
+Post_hoc <- Post_hoc %>% 
+  add_xy_position(x = "Species_Scel")
+ggboxplot(Data_SVL, x = "Species_Scel", y = "SVL", fill = "Species_Scel") +
+  xlab(element_blank())+
+  scale_fill_manual(values = c("#56B4E9","#009E73", "#999999","#E69F00"))+
+      theme_classic() +
+   theme(legend.position = "right",
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_blank(),
+        legend.title = element_blank()) +
+  theme(legend.text = element_text(face = "italic"))+
+  stat_pvalue_manual(Post_hoc, hide.ns = TRUE) +
+  labs(
+    subtitle = get_test_label(kruskal.t, detailed = TRUE),
+    caption = get_pwc_label(Post_hoc))
+```
+
+
+## Generalized Linear Model with quasi-Poisson distribution (q = 1) 
+
+```{r}
+M1 <- glm(q1 ~ SEASON*SPECIES+ELEVATION+SVL+SEQDEPTH,
+           family = quasipoisson(link = "log"),
+           data = Micro_div)
+summary(M1)
+plot(M1)
+
+M2 <- update(M1,. ~ . -SPECIES:SEASON)
+anova(M1, M2, test = "F")
+summary(M2)
+
+M3 <- update(M2,. ~ . -SVL)
+anova(M2, M3, test = "F")
+summary(M3)
+
+M4 <- update(M3,. ~ . -ELEVATION) 
+anova(M3, M4, test = "F")
+summary(M4)
+confint(M4)
+
+M5 <- update(M4,. ~ . -SEQDEPTH) 
+anova(M4, M5, test="F")
+summary(M5)
+
+# Best Model
+M6 <- glm(q1 ~ SEASON*SPECIES,
+          family = quasipoisson(link = "log"),
+          data = Micro_div)
+anova(M6, test="F")
+summary(M6)
+confint(M6)
+coef(M6)
+```
+
+
+
+## Residual plot of the best model
+### Plot model assumption
+
+```{r}
+plot_model(M6, type = "eff", terms = "SPECIES")
+plot_model(M6, show.values = TRUE, value.offset = .3, width = 0.1,
+           vline.color = "#E69F00")
+
+residuals_q1 <- plot_model(M6, type = "eff", terms = c("SEASON","SPECIES"),
+                           colors = c("#999999", "#E69F00", "#56B4E9", 
+                                      "#009E73", "#F0E442")) +
+  theme_classic() +
+  theme(legend.text = element_text(face = "italic")) +
+  theme(axis.text.x = element_text(size = 11))
+residuals_q1 
+ggsave("../figures/residuals_q1.jpeg", width = 5.0, height = 3.0, dpi = 300)
+```
+
+
+### Contrasts (dry vs rainy), CI95%, p values
+#### Tukey Test
+
+```{r}
+library(emmeans)
+emmeans(M6, specs = ~ SPECIES*SEASON) %>%
+  contrast() %>%
+  as.data.frame()
+emm <- emmeans(M6, spec = ~ SPECIES*SEASON, 
+               type = "response")
+print(emm)
+X <- contrast(emm, method = "pairwise")
+confint(X)
+
+M1.emm.s <- emmeans(M6, specs = ~ SPECIES*SEASON)
+pairs(M1.emm.s, adjust = "tukey", infer=c(TRUE,TRUE))
+pwpm(M1.emm.s)
+summary(M1.emm.s, type="response")
+plot(M1.emm.s, comparisons=TRUE, type="response")
+
+```
+
+
+## Evaluate whether sex variable influence on gut microbiota diversity (q=2)
+
+```{r}
+# Paired test (Wilcoxon test, q2) 
+
+# Sceloporus aeneus
+aeneus_fem_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus aeneus" & 
+                            Sex == "Female", q2, drop = TRUE)
+aeneus_male_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus aeneus" & 
+                             Sex == "Male", q2, drop = TRUE)
+aeneus_FemMale_GutMic <- wilcox.test(x= aeneus_fem_GutMic, y= aeneus_male_GutMic)
+aeneus_FemMale_GutMic
+
+# Sceloporus bicanthalis
+bica_fem_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus bicanthalis" & 
+                          Sex == "Female", q2, drop = TRUE)
+bica_male_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus bicanthalis" & 
+                           Sex == "Male", q2, drop = TRUE)
+bica_FemMale_GutMic <- wilcox.test(x= bica_fem_GutMic, y= bica_male_GutMic)
+bica_FemMale_GutMic
+
+# Sceloporus grammicus
+gram_fem_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus grammicus" & 
+                          Sex == "Female", q2, drop = TRUE)
+gram_male_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus grammicus" & 
+                           Sex == "Male", q2, drop = TRUE)
+gram_FemMale_GutMic <- wilcox.test(x= gram_fem_GutMic, y= gram_male_GutMic)
+gram_FemMale_GutMic
+
+# Sceloporus spinosus
+spi_fem_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus spinosus" & 
+                         Sex == "Female", q2, drop = TRUE)
+spi_male_GutMic <- subset(Micro_div, Species_Scel == "Sceloporus spinosus" & 
+                          Sex == "Male", q2, drop = TRUE)
+spi_FemMale_GutMic <- wilcox.test(x= spi_fem_GutMic, y= spi_male_GutMic)
+spi_FemMale_GutMic
+```
+
+
+## Generalized Linear Model with quasi-Poisson distribution (q = 2)
+
+```{r}
+MODEL1 <- glm(q2 ~ SEASON*SPECIES+ELEVATION+SVL+SEQDEPTH,
+            family = quasipoisson(link = "log"),
+            data = Micro_div)
+summary(MODEL1)
+plot(MODEL1)
+
+MODEL2 <- update(MODEL1,. ~ . -SPECIES:SEASON)
+anova(MODEL1, MODEL2, test = "F")
+summary(MODEL2)
+
+MODEL3 <- update(MODEL2,. ~ . -SVL)
+anova(MODEL2, MODEL3, test="F")
+summary(MODEL3)
+
+MODEL4 <- update(MODEL3,. ~ . -SEQDEPTH)
+anova(MODEL3, MODEL4, test="F")
+summary(MODEL4)
+
+MODEL5 <- update(MODEL4,. ~ . -ELEVATION) # Best model
+anova(MODEL4, MODEL5, test="F")
+summary(MODEL5)
+
+# Best Model
+MODEL6 <- glm(q2 ~ SEASON*SPECIES,
+              family = quasipoisson(link = "log"),
+              data = Micro_div)
+summary(MODEL6)
+coef(MODEL6)
+confint(MODEL6)
+
+```
+
+
+### Residual plot of the best model
+#### Plot model assumption
+```{r}
+
+plot_model(MODEL6, type = "eff", terms = "SPECIES")
+plot_model(MODEL6, show.values = TRUE, value.offset = .3, width = 0.1,
+           vline.color = "#E69F00")
+
+residuals_q2 <- plot_model(MODEL6, type = "eff", terms = c("SEASON","SPECIES"),
+                           colors = c("#999999", "#E69F00", "#56B4E9", 
+                                      "#009E73", "#F0E442")) +
+  theme_classic() +
+  theme(legend.text = element_text(face = "italic")) +
+  theme(axis.text.x = element_text(size = 11))
+residuals_q2 
+ggsave("../figures/residuals_q2.jpeg", width = 5.0, height = 3.0, dpi = 300)
+
+```
+
+
+#### Contrasts (dry vs rainy), CI95%, p values
+
+
+```{r}
+## Tukey Test
+
+emmeans(MODEL6, specs = ~ SPECIES*SEASON) %>%
+  contrast() %>%
+  as.data.frame()
+
+emm_q2 <- emmeans(MODEL6, spec = ~ SPECIES*SEASON, 
+                  type = "response")
+print(emm_q2)
+X_q2 <- contrast(emm_q2, method = "pairwise")
+confint(X_q2)
+
+M1.emm.s_q2 <- emmeans(MODEL6, specs = ~ SPECIES*SEASON)
+pairs(M1.emm.s_q2, adjust = "tukey", infer=c(TRUE,TRUE))
+pairs(M1.emm.s_q2, adjust = "tukey")
+pwpm(M1.emm.s_q2)
+summary(M1.emm.s_q2, type="response")
+plot(M1.emm.s_q2, comparisons=TRUE, type="response")
+
+```
+
+
+## Relation between alpha taxonomic microbiota and diet
+
+```{r}
+Micro_div$Ind <- substr(Micro_div$SampleID, 8, nchar(Micro_div$SampleID) - 0)
+
+diet_phylo_div <- read.csv("../data/diet_Hill_numbers_q012.csv", header = TRUE) 
+# Generar una nueva columna con la información de otra columna, excluyendo los últimos 4 caracteres
+diet_phylo_div$Ind <- substr(diet_phylo_div$SampleID, 8, nchar(diet_phylo_div$SampleID) - 4)
+#names(diet_phylo_div)[names(diet_phylo_div) %in% c("q0", "q1", "q2")] <- c("d.p.0", "d.p.1", #"d.p.2")
+divs <- Micro_div %>% 
+  inner_join(diet_phylo_div, by = c("Ind"="Ind"))
+
+#write.table(divs, file="../data/full_divs.txt", sep = "\t")
+
+##Plot
+
+taxq1_tq0 <- ggscatter(divs, x = "tq0", y = "q1", color = "Species_Scel",
+   palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), xlab= "Diet taxonomic diversity", ylab="Gut bacterial diversity (q=1)")+
+  theme(legend.title = element_blank(), legend.position = "bottom")
+
+
+taxq2_tq0 <- ggscatter(divs, x = "tq0", y = "q2", color = "Species_Scel",
+   palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), 
+   xlab= "Diet taxonomic diversity", ylab="Gut bacterial diversity (q=2)")+
+  theme(legend.title = element_blank(), legend.position = "bottom")
+
+
+phyq1_pq0 <- ggscatter(divs, x = "pq0", y = "q1", color = "Species_Scel",
+   palette = c("#999999", "#E69F00", "#56B4E9", "#009E73") , 
+   xlab= " Diet phylogenetic diversity", ylab="Gut bacterial diversity (q=1)")+
+  theme(legend.title = element_blank(), legend.position = "bottom")
+
+
+phyq2_pq0 <- ggscatter(divs, x = "pq0", y = "q2", color = "Species_Scel",
+   palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), 
+   xlab= "Diet phylogenetic diversity", ylab="Gut bacterial diversity (q=2)")+
+  theme(legend.title = element_blank(), legend.position = "bottom")
+
+
+taxq1_tq0.sp <- ggscatter(divs, x = "tq0", y = "q1", color = "Species_Scel",
+   palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), 
+   xlab= "Diet taxonomic diversity", ylab="Gut bacterial diversity (q=1)",
+   facet.by = "Species_Scel" #,
+   #add = "reg.line",  # Add regressin line
+   #add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   #conf.int = TRUE, # Add confidence interval
+   #cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   #cor.coeff.args = list(method = "spearman", label.x = 3, label.sep = "\n")
+   )+
+  theme(legend.position = "none")
+
+
+taxq2_tq0.sp <- ggscatter(divs, x = "tq0", y = "q2", color = "Species_Scel",
+   palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), 
+   xlab= "Diet taxonomic diversity", ylab="Gut bacterial diversity (q=2)",
+   facet.by = "Species_Scel" #,
+   #add = "reg.line",  # Add regressin line
+   #add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   #conf.int = TRUE, # Add confidence interval
+   #cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   #cor.coeff.args = list(method = "spearman", label.x = 3, label.sep = "\n")
+   )+
+  theme(legend.position = "none")
+
+
+phyq1_pq0.sp <- ggscatter(divs, x = "pq0", y = "q1", color = "Species_Scel",
+   palette = c("#999999", "#E69F00", "#56B4E9", "#009E73") , 
+   xlab= " Diet phylogenetic diversity", ylab="Gut bacterial diversity (q=1)",
+   facet.by = "Species_Scel"#,
+   #add = "reg.line",  # Add regressin line
+   #add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   #conf.int = TRUE, # Add confidence interval
+   #cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   #cor.coeff.args = list(method = "spearman", label.x = 3, label.sep = "\n")
+   )+
+  theme(legend.position = "none")
+
+
+phyq2_pq0.sp <- ggscatter(divs, x = "pq0", y = "q2", color = "Species_Scel",
+   palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), 
+   xlab= "Diet phylogenetic diversity", ylab="Gut bacterial diversity (q=2)", 
+   facet.by = "Species_Scel" #,
+   #add = "reg.line",  # Add regressin line
+   #add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   #conf.int = TRUE, # Add confidence interval
+   #cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   #cor.coeff.args = list(method = "spearman", label.x = 3, label.sep = "\n")
+   )+
+  theme(legend.position = "none")
+
+taxq1_tq0
+taxq1_tq0.sp
+taxq2_tq0
+taxq2_tq0.sp
+phyq1_pq0
+phyq1_pq0.sp
+phyq2_pq0
+phyq2_pq0.sp
+
+diet.vs.micro1<- plot_grid(taxq1_tq0, taxq1_tq0.sp, 
+                          labels = "AUTO", ncol = 1)
+ggsave("../figures/dietvsmicro1.jpeg", width=8, height=9, dpi=300)
+diet.vs.micro2<- plot_grid(taxq2_tq0, taxq2_tq0.sp, 
+                          labels = "AUTO", ncol = 1)
+ggsave("../figures/dietvsmicro2.jpeg", width=8, height=9, dpi=300)
+diet.vs.micro3<- plot_grid(phyq1_pq0, phyq1_pq0.sp, 
+                          labels = "AUTO", ncol = 1)
+ggsave("../figures/dietvsmicro3.jpeg", width=8, height=9, dpi=300)
+diet.vs.micro4<- plot_grid(phyq2_pq0, phyq2_pq0.sp, 
+                          labels = "AUTO", ncol = 1)
+ggsave("../figures/dietvsmicro4.jpeg", width=8, height=9, dpi=300)
+
+```
+
+---
+
+## Effect of diet on gut microbiota
+
+### loading files
+```{r}
+richness_microb <- read.csv("../data/Hill_numbers_q012.csv", header = TRUE) %>% 
+  dplyr::select(SampleID, q0, q1, q2)
+metadata <- read.csv("../data/Metadata_model_DietMic.csv", header = TRUE, check.names = F)
+Microb_data <- richness_microb %>% inner_join(metadata, by = c("SampleID"="SampleID"))
+```
+
+
+### Check distribution of the dependent variable (diversity q=0, Hill numbers)
+```{r}
+shapiro.test(Microb_data$q0) # Data are not normal
+shapiro.test(Microb_data$q1) # Normal data
+
+hist(Microb_data$q0, col = "darkgreen") # q0
+hist(log(Microb_data$q0), col = "orange") # log transformation
+hist(Microb_data$q1, col = "gray") # q1
+hist(Microb_data$q2, col = "blue") # q2
+
+bartlett.test(q0 ~ Species_Scel, data = Microb_data) 
+leveneTest(q0 ~ Species_Scel, data = Microb_data)
+```
+
+
+
+### Plot variances among lizard species (q0)
+```{r}
+boxplot(q0 ~ Species_Scel, data = Microb_data,
+        main = "Differences in variance among lizard species",
+        xlab = "Species",
+        ylab = " Hill numbers (q0)",
+        col = "#4682B433",
+        border = "black")
+
+```
+
+
+###Preparing the data
+
+```{r}
+#Declare as factors
+SPECIES <- as.factor(Microb_data$Species_Scel) # Four Sceloporus lizard species
+SEASON <- as.factor(Microb_data$Season) # Dry and Rainy
+SEX <- as.factor(Microb_data$Sex) # Male and Female
+
+#Standardize continous independent variables
+SVL <- rescale(Microb_data$SVL, binary.inputs = "center") # Snout–vent length measured in mm.
+ELEVATION <- rescale(Microb_data$Elevation, binary.inputs = "center") # Taken as m a.s.l. 
+SEQDEPTH <- rescale(Microb_data$SeqDepth, binary.inputs = "center")
+```
+
+
+
+
+### Linear model with Poisson distribution (taxonomic q = 0) 
+
+#### With Microbial Diversity (q1) 
+```{r}
+## UPDATE FUNCTION (RUN ANOVA)
+# 68 samples (diet / microbiota)
+m1 <- glm(q1 ~ Diet*SPECIES+SEASON,
+          family = quasipoisson(link = "log"),
+          data = Microb_data)
+summary(m1)
+plot(m1)
+
+m2 <- update(m1,. ~ . -Diet:SPECIES)
+anova(m1, m2, test="F")
+summary(m2)
+
+m3 <- update(m2,. ~ . -Diet)
+anova(m2, m3, test="F")
+summary(m3) # Best Model
+
+m4 <- update(m3,. ~ . -SPECIES)
+anova(m3, m4, test="F")
+summary(m4)
+
+m5 <- update(m3,. ~ . -SEASON)
+anova(m3, m5, test="F")
+summary(m5)
+
+# Plot model assumption
+plot_model(m3, type = "eff", terms = "SPECIES",
+           colors = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442")) +
+  theme(legend.text = element_text(face = "italic"))
+
+plot_model(m3, type = "eff", terms = c("SPECIES", "SEASON"),
+           colors = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442")) +
+  theme_classic() +
+  theme(legend.text = element_text(face = "italic")) +
+  theme(axis.text.x = element_text(size = 11))
+```
+
+
+#### With Microbial Diversity (q2) 
+
+```{r}
+model1 <- glm(q2 ~ Diet*SPECIES+SEASON,
+              family = quasipoisson(link = "log"),
+              data = Microb_data)
+summary(model1)
+plot(model1)
+
+model2 <- update(model1,. ~ . -Diet:SPECIES)
+anova(model1, model2, test="F")
+summary(model2)
+
+model3 <- update(model2,. ~ . -Diet)
+anova(model2, model3, test="F")
+summary(model3)
+
+model4 <- update(model3,. ~ . -SEASON)
+anova(model3, model4, test="F") # Best model
+summary(model4)
+
+model5 <- update(model4,. ~ . -SPECIES)
+anova(model4, model5, test="F")
+summary(model5)
+
+# Plot model assumption
+plot_model(model3, type = "eff", terms = "SPECIES",
+           colors = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442")) +
+  theme(legend.text = element_text(face = "italic"))
+```
+
+### Linear models with Poisson  distribution (Phylogenetic q = 0) 
+
+#### With Microbial Diversity (q1)
+```{r}
+
+divs$phyDiet<- divs$pq0
+#Declare as factors
+SPECIES <- as.factor(divs$Species_Scel) # Four Sceloporus lizard species
+SEASON <- as.factor(divs$Season) # Dry and Rainy
+SEX <- as.factor(divs$Sex) # Male and Female
+
+#Standardize continous independent variables
+SVL <- rescale(divs$SVL, binary.inputs = "center") # Snout–vent length measured in mm.
+ELEVATION <- rescale(divs$Elevation, binary.inputs = "center") # Taken as m a.s.l. 
+SEQDEPTH <- rescale(divs$SeqDepth, binary.inputs = "center")
+
+## UPDATE FUNCTION (RUN ANOVA)
+# 68 samples (diet / microbiota)
+m1 <- glm(q1 ~ phyDiet*SPECIES+SEASON,
+          family = quasipoisson(link = "log"),
+          data = divs)
+summary(m1)
+plot(m1)
+
+m2 <- update(m1,. ~ . -phyDiet:SPECIES)
+anova(m1, m2, test="F")
+summary(m2)
+
+m3 <- update(m2,. ~ . -phyDiet)
+anova(m2, m3, test="F")
+summary(m3) # Best Model
+
+m4 <- update(m3,. ~ . -SPECIES)
+anova(m3, m4, test="F")
+summary(m4)
+
+m5 <- update(m3,. ~ . -SEASON)
+anova(m3, m5, test="F")
+summary(m5)
+
+# Plot model assumption
+plot_model(m3, type = "eff", terms = "SPECIES",
+           colors = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442")) +
+  theme(legend.text = element_text(face = "italic"))
+
+plot_model(m3, type = "eff", terms = c("SPECIES", "SEASON"),
+           colors = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442")) +
+  theme_classic() +
+  theme(legend.text = element_text(face = "italic")) +
+  theme(axis.text.x = element_text(size = 11))
+```
+
+
+#### With Microbial Diversity (q2) 
+
+```{r}
+model1 <- glm(q2 ~ phyDiet*SPECIES+SEASON,
+              family = quasipoisson(link = "log"),
+              data = divs)
+summary(model1)
+plot(model1)
+
+model2 <- update(model1,. ~ . -phyDiet:SPECIES)
+anova(model1, model2, test="F")
+summary(model2)
+
+model3 <- update(model2,. ~ . -phyDiet)
+anova(model2, model3, test="F")
+summary(model3)
+
+model4 <- update(model3,. ~ . -SEASON)
+anova(model3, model4, test="F") # Best model
+summary(model4)
+
+model5 <- update(model4,. ~ . -SPECIES)
+anova(model4, model5, test="F")
+summary(model5)
+
+# Plot model assumption
+plot_model(model3, type = "eff", terms = "SPECIES",
+           colors = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442")) +
+  theme(legend.text = element_text(face = "italic"))
+```
