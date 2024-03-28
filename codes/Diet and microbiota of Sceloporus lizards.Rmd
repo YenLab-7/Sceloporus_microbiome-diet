@@ -1,0 +1,43 @@
+---
+title: "Seasonal dietary changes influence gut microbiota composition depending on the host species but do not alter gut microbiota diversity in lizards"
+author: 
+- name: Mauricio Hernández
+  affiliation: Laboratory of Biotic Interactions, Centro de Investigación en Ciencias
+    Biológicas, Universidad Autónoma de Tlaxcala, Tlaxcala, Mexico
+  email:  delmer.hernandez@unah.edu.hn
+- name: Sergio Ancona
+  affiliation: Instituto de Ecología, Universidad Nacional Autónoma de México, Mexico
+  email: sergio.ancona@iecologia.unam.mx
+- name: Stephanie Hereira-Pacheco
+  affiliation: Laboratory of Biotic Interactions, Centro de Investigación en Ciencias
+    Biológicas, Universidad Autónoma de Tlaxcala, Tlaxcala, Mexico
+- name: Aníbal H. Díaz de la Vega-Pérez
+  affiliation: Universidad Autónoma de Tlaxcala, Tlaxcala, Mexico
+- name: Antton Alberdi
+  affiliation: Center for Evolutionary Hologenomics, The GLOBE Institute, University of Copenhagen, Copenhagen, Denmark
+- name: Yendi E. Navarro-Noya
+  affiliation: Laboratory of Biotic Interactions, Centro de Investigación en Ciencias
+    Biológicas, Universidad Autónoma de Tlaxcala, Tlaxcala, Mexico
+  email: yendiebenezer.navarro.n@uatx.mx
+date: "`r format(Sys.time(), '%d - %m - %Y')`"
+output: 
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+    df_print: paged
+---
+```{r child = "1Taxonomic_composition.Rmd"}
+```
+
+```{r child = '2Alpha_div_tax.Rmd'}
+```
+
+
+```{r child = '3Betadiv_analyses.Rmd'}
+```
+
+```{r child = '4Procrustes.Rmd'}
+```

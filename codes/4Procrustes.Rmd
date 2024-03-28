@@ -23,7 +23,7 @@ output:
 # IV. MANTEL Y PROCRUSTES ANALYSIS
 
 ## Load libraries
-```{r setup, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE}
 library(vegan)
 library(ggplot2)
 library(cowplot)
@@ -36,7 +36,7 @@ library(hilldiv2)
 ## Loading files
 
 This analysis is based on 68 samples obtained from both datasets (diet-microbiota)
-```{r}
+```{r, warning=FALSE, message=FALSE}
 metadata <- read.csv("../data/Procrustes_metadata.csv", header = TRUE, check.names = FALSE, 
                      row.names = 1)
 diet <- read.csv("../data/Procrustes_Diet.csv", header = TRUE, check.names = FALSE, 
@@ -50,7 +50,7 @@ microbiota <- read.csv("../data/Procrustes_Microbiota.csv", header = TRUE,
 
 ## Calculate distances matrices
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 # Distance matrix of bacterial microbiota
 jaccard_mic_1 <- hillpair(data = microbiota, q = 1) # distance matrix at order q1
 microbiota_jaccard_1 <- as.dist(jaccard_mic_1$S)
@@ -60,12 +60,11 @@ microbiota_jaccard_2 <- as.dist(jaccard_mic_2$S)
 # Distance matrix of diet
 diet_jaccard <- vegdist(diet, method = "jaccard")
 
-
 ```
 
 
 ## Mantel test
-```{r}
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
 set.seed(123)
 # Order q=1
 mantel(diet_jaccard, microbiota_jaccard_1, method = "pearson",
@@ -80,7 +79,7 @@ mantel(diet_jaccard, microbiota_jaccard_2, method = "pearson",
 
 ## Make pcoas 
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 #PcoA of diet
 dietPCoA <- as.data.frame(cmdscale(diet_jaccard))
@@ -100,7 +99,7 @@ plot(microbiotaPCoA_2)
 ## Procrustes analysis of all species
 
 ### Procrustes analysis of all species at order q=1
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 procrust <- procrustes(X = dietPCoA, Y = microbiotaPCoA_1, scale=TRUE,
                        symmetric = TRUE)
@@ -143,7 +142,7 @@ pval <- signif(pro_test$signif, 1)
 
 ### Graph diet and microbiota
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 procrustes_new <- ggplot(toplot) +
   geom_point(size = 1.8, alpha = 0.75, aes(x = V1, y = V2, color = species, 
                                          shape = type)) + 
@@ -171,11 +170,11 @@ procrustes_new <- ggplot(toplot) +
   xlab(paste0("PCoA 1 (",percent_var[1],"%)")) +
   ylab(paste0("PCoA 2 (",percent_var[2],"%)"))
 print(procrustes_new)
-ggsave("../figures/procrustes_diet_q1.jpeg", width = 8.0, height = 4.0, dpi = 300)
+#ggsave("../figures/procrustes_diet_q1.jpeg", width = 8.0, height = 4.0, dpi = 300)
 ```
 
 ### Procrustes analysis of all species at order q=2
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 procrust <- procrustes(X = dietPCoA, Y = microbiotaPCoA_2, scale=TRUE,
                        symmetric = TRUE)
@@ -212,7 +211,7 @@ pval <- signif(pro_test$signif, 1)
 
 ### Graph diet and microbiota
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 procrustes_new <- ggplot(toplot) +
   geom_point(size = 1.8, alpha = 0.75, aes(x = V1, y = V2, color = species, 
                                          shape = type)) + 
@@ -240,7 +239,7 @@ procrustes_new <- ggplot(toplot) +
   xlab(paste0("PCoA 1 (",percent_var[1],"%)")) +
   ylab(paste0("PCoA 2 (",percent_var[2],"%)"))
 print(procrustes_new)
-ggsave("../figures/procrustes_diet_q2.jpeg", width = 8.0, height = 4.0, dpi = 300)
+#ggsave("../figures/procrustes_diet_q2.jpeg", width = 8.0, height = 4.0, dpi = 300)
 ```
 
 
@@ -251,7 +250,7 @@ Procrsutes by lizard species were done at q=1 as similar patterns were observed 
 
 ### Procrustes of  Sceloporus aeneus
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 #loading data
 aeneus_metadata <- subset(metadata, Species_Scel == "Sceloporus aeneus")
@@ -343,12 +342,12 @@ procreustes_aeneus_new <- ggplot(toplot_a) +
   xlab(paste0("PCoA 1 (",percent_var_a[1],"%)")) +
   ylab(paste0("PCoA 2 (",percent_var_a[2],"%)"))
 print(procreustes_aeneus_new)
-ggsave("../figures/procreustes_aeneus_new.jpeg", width = 8.0, height = 4.0, dpi = 300)
+#ggsave("../figures/procreustes_aeneus_new.jpeg", width = 8.0, height = 4.0, dpi = 300)
 ```
 
 
 ### Procrustes of Sceloporus bicanthalis 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 #Loading data
 bica_metadata <- subset(metadata, Species_Scel == "Sceloporus bicanthalis")
@@ -435,7 +434,7 @@ procreustes_bica_new <- ggplot(toplot_b) +
   xlab(paste0("PCoA 1 (",percent_var_b[1],"%)")) +
   ylab(paste0("PCoA 2 (",percent_var_b[2],"%)"))
 print(procreustes_bica_new)
-ggsave("../figures/procreustes_bica_new.jpeg", width = 8.0, height = 4.0, dpi = 300)
+#ggsave("../figures/procreustes_bica_new.jpeg", width = 8.0, height = 4.0, dpi = 300)
 
 ```
 
@@ -443,7 +442,7 @@ ggsave("../figures/procreustes_bica_new.jpeg", width = 8.0, height = 4.0, dpi = 
 
 ### Procrustes: Sceloporus grammicus
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 # Loading data
 
@@ -530,14 +529,14 @@ procreustes_gram_new <- ggplot(toplot_g) +
   xlab(paste0("PCoA 1 (",percent_var_g[1],"%)")) +
   ylab(paste0("PCoA 2 (",percent_var_g[2],"%)"))
 print(procreustes_gram_new)
-ggsave("../figures/procreustes_gram_new.jpeg", width = 8.0, height = 4.0, dpi = 300)
+#ggsave("../figures/procreustes_gram_new.jpeg", width = 8.0, height = 4.0, dpi = 300)
 
 ```
 
 
 
 ### Procrustes: Sceloporus spinosus #
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 
 spi_metadata <- subset(metadata, Species_Scel == "Sceloporus spinosus")
@@ -624,12 +623,12 @@ procreustes_spi_new <- ggplot(toplot_s) +
   xlab(paste0("PCoA 1 (",percent_var_s[1],"%)")) +
   ylab(paste0("PCoA 2 (",percent_var_s[2],"%)"))
 print(procreustes_spi_new)
-ggsave("../figures/procreustes_spi_new.jpeg", width = 8.0, height = 4.0, dpi = 300)
+#ggsave("../figures/procreustes_spi_new.jpeg", width = 8.0, height = 4.0, dpi = 300)
 ```
 
 ## Procustes and mantel analysis considering phylogenetic comosition of diet
 
-```{r, eval=FALSE}
+```{r, warning=FALSE, message=FALSE, eval=FALSE}
 tree.diet <- read.tree("../data/tree.nwk")
 comm<-(diet)
 IDs= colnames(comm)   # para obtener los nombres de las sp
@@ -640,7 +639,7 @@ hill_phylo_parti_pairwise(comm,tree.diet, q = 0, show_warning = F)
 
 ```
   
-```{r, eval=FALSE}  
+```{r, warning=FALSE, message=FALSE, eval=FALSE}  
 # Loading phylogenetic tree
 phy_tree <- read_tree("../data/tree.nwk")
 
@@ -654,7 +653,7 @@ diet_dist_phy = distance(phylo_physeq, method = "uunifrac") %>% as.dist
 
 ```
 
-```{r, eval=FALSE}
+```{r, warning=FALSE, message=FALSE, eval=FALSE}
 set.seed(123)
 # Order q=1
 mantel(diet_dist_phy, microbiota_jaccard_1, method = "pearson",

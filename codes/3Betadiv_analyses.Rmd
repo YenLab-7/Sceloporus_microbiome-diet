@@ -105,7 +105,7 @@ NMDS_Plot_q1 <- ggplot(hill_pair_dis_nmds, aes(x = NMDS1, y = NMDS2,
   theme(legend.text = element_text(face = "italic")) +
   scale_colour_manual(values = c("#999999","#E69F00","#56B4E9","#009E73","#F0E442"))
 print(NMDS_Plot_q1)
-ggsave("../figures/NMDS_Plot_q1.jpeg", width = 8.0, height = 4.0, dpi = 300)
+#ggsave("../figures/NMDS_Plot_q1.jpeg", width = 8.0, height = 4.0, dpi = 300)
 ```
 
 ### Run PERMANONA
@@ -133,7 +133,7 @@ print(intrasp_compar)
 ```{r}
 compar_intrasp<- c("Sceloporus grammicus_Dry_vs_Sceloporus grammicus_Rainy", "Sceloporus aeneus_Dry_vs_Sceloporus aeneus_Rainy", "Sceloporus bicanthalis_Dry_vs_Sceloporus bicanthalis_Rainy", "Sceloporus spinosus_Dry_vs_Sceloporus spinosus_Rainy")
 
-dist.q1 <- hill_pair_dis$q1S %>% as.matrix()
+dist.q1 <- 1-(hill_pair_dis$q1S) %>% as.matrix()
 
 #convert matrix into df
 dist.q1[lower.tri(dist.q1)] <- NA
@@ -165,7 +165,7 @@ Post_hoc.q1 <- Post_hoc.q1 %>%
 # Boxplot
 q1_intrasp<-dist.q1.meta.filt %>% 
   ggboxplot(x = "Species.order", y="value", fill = "Species.order")+
-  ylab("Seasonal turnover at q=1")+
+  ylab("Seasonal turnover of frequent ASVs (q=1)")+
   xlab(element_blank())+
   scale_fill_manual(values = c("#999999","#E69F00","#56B4E9","#009E73","#F0E442"))+
       theme_classic() +
@@ -174,13 +174,18 @@ q1_intrasp<-dist.q1.meta.filt %>%
         axis.text.x = element_blank(),
         legend.title = element_blank()) +
   theme(legend.text = element_text(face = "italic"))+
-  stat_pvalue_manual(Post_hoc.q1, hide.ns = TRUE) +
+  stat_pvalue_manual(Post_hoc.q1, 
+                     hide.ns = TRUE, 
+                     step.increase = 0.2) +
   labs(
-    subtitle = get_test_label(kruskal.t.q1, detailed = TRUE),
-    caption = get_pwc_label(Post_hoc.q1))
+    subtitle = get_test_label(kruskal.t.q1, 
+                              detailed = TRUE),
+    caption = get_pwc_label(Post_hoc.q1))+
+  scale_y_continuous(limits = c(0,1))
+
   
 q1_intrasp
-ggsave("../figures/beta_div_intrasp_q1.jpeg", width = 5.0, height = 4.0, dpi = 300)
+#ggsave("../figures/beta_div_intrasp_q1.jpeg", width = 5.0, height = 4.0, dpi = 300)
 
 
 ```      
@@ -240,7 +245,7 @@ NMDS_Plot_q2 <- ggplot(hill_pair_dis_nmds_2, aes(x = NMDS1, y = NMDS2,
   theme(legend.text = element_text(face = "italic")) +
   scale_colour_manual(values = c("#999999","#E69F00","#56B4E9","#009E73","#F0E442"))
 print(NMDS_Plot_q2)
-ggsave("../figures/NMDS_Plot_q2.jpeg", width = 8.0, height = 4.0, dpi = 300)
+#ggsave("../figures/NMDS_Plot_q2.jpeg", width = 8.0, height = 4.0, dpi = 300)
 ```
 
 ### Run PERMANOVA
@@ -267,7 +272,7 @@ print(intrasp_compar_q2)
 ```{r}
 compar_intrasp<- c("Sceloporus grammicus_Dry_vs_Sceloporus grammicus_Rainy", "Sceloporus aeneus_Dry_vs_Sceloporus aeneus_Rainy", "Sceloporus bicanthalis_Dry_vs_Sceloporus bicanthalis_Rainy", "Sceloporus spinosus_Dry_vs_Sceloporus spinosus_Rainy")
 
-dist.q2 <- hill_pair_dis$q2S %>% as.matrix()
+dist.q2 <- 1-(hill_pair_dis$q2S) %>% as.matrix()
 
 #convert matrix into df
 dist.q2[lower.tri(dist.q2)] <- NA
@@ -298,7 +303,7 @@ Post_hoc.q2 <- Post_hoc.q2 %>%
 
 q2_intrasp<-dist.q2.meta.filt %>% 
  ggboxplot(x = "Species.order", y="value", fill = "Species.order")+
-  ylab("Seasonal turnover at q=2")+
+  ylab("Seasonal turnover of dominant ASVs (q=2)")+
   xlab(element_blank())+
   scale_fill_manual(values = c("#999999","#E69F00","#56B4E9","#009E73","#F0E442"))+
       theme_classic() +
@@ -307,13 +312,17 @@ q2_intrasp<-dist.q2.meta.filt %>%
         axis.text.x = element_blank(),
         legend.title = element_blank()) +
   theme(legend.text = element_text(face = "italic"))+
-  stat_pvalue_manual(Post_hoc.q2, hide.ns = TRUE) +
+  stat_pvalue_manual(Post_hoc.q2, 
+                     hide.ns = TRUE,
+                     step.increase = 0.1) +
   labs(
-    subtitle = get_test_label(kruskal.t.q2, detailed = TRUE),
-    caption = get_pwc_label(Post_hoc.q2))
+    subtitle = get_test_label(kruskal.t.q2, 
+                              detailed = TRUE),
+    caption = get_pwc_label(Post_hoc.q2))+
+  scale_y_continuous(limits = c(0,1))
   
 q2_intrasp
-ggsave("../figures/beta_div_intrasp_q2.jpeg", width = 5.0, height = 4.0, dpi = 300)
+#ggsave("../figures/beta_div_intrasp_q2.jpeg", width = 5.0, height = 4.0, dpi = 300)
 
 ```                        
                         

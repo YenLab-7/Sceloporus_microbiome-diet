@@ -223,7 +223,7 @@ residuals_q1 <- plot_model(M6, type = "eff", terms = c("SEASON","SPECIES"),
   theme(legend.text = element_text(face = "italic")) +
   theme(axis.text.x = element_text(size = 11))
 residuals_q1 
-ggsave("../figures/residuals_q1.jpeg", width = 5.0, height = 3.0, dpi = 300)
+#ggsave("../figures/residuals_q1.jpeg", width = 5.0, height = 3.0, dpi = 300)
 ```
 
 
@@ -340,7 +340,7 @@ residuals_q2 <- plot_model(MODEL6, type = "eff", terms = c("SEASON","SPECIES"),
   theme(legend.text = element_text(face = "italic")) +
   theme(axis.text.x = element_text(size = 11))
 residuals_q2 
-ggsave("../figures/residuals_q2.jpeg", width = 5.0, height = 3.0, dpi = 300)
+#ggsave("../figures/residuals_q2.jpeg", width = 5.0, height = 3.0, dpi = 300)
 
 ```
 
@@ -388,78 +388,110 @@ divs <- Micro_div %>%
 ##Plot
 
 taxq1_tq0 <- ggscatter(divs, x = "tq0", y = "q1", color = "Species_Scel",
-   palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), xlab= "Diet taxonomic diversity", ylab="Gut bacterial diversity (q=1)")+
-  theme(legend.title = element_blank(), legend.position = "bottom")
+   palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), xlab= "Taxonomic richness of diet (number of taxonomic groups)", ylab="Gut bacterial diversity (effective number of frequent ASVs)",
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")
+   )+
+  theme(legend.title = element_blank(), legend.position = "none")
 
 
 taxq2_tq0 <- ggscatter(divs, x = "tq0", y = "q2", color = "Species_Scel",
    palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), 
-   xlab= "Diet taxonomic diversity", ylab="Gut bacterial diversity (q=2)")+
-  theme(legend.title = element_blank(), legend.position = "bottom")
+   xlab= "Taxonomic richness of diet (number of taxonomic groups)", ylab="Gut bacterial diversity (effective number of dominant ASVs)",
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")
+   )+
+  theme(legend.title = element_blank(), legend.position = "none")
 
 
 phyq1_pq0 <- ggscatter(divs, x = "pq0", y = "q1", color = "Species_Scel",
    palette = c("#999999", "#E69F00", "#56B4E9", "#009E73") , 
-   xlab= " Diet phylogenetic diversity", ylab="Gut bacterial diversity (q=1)")+
-  theme(legend.title = element_blank(), legend.position = "bottom")
+   xlab= " Phylogenetic richness of diet (number of phylogenetic lineages)", ylab="Gut bacterial diversity (effective number of frequent ASVs)",
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")
+   )+
+  theme(legend.title = element_blank(), legend.position = "none")
 
 
 phyq2_pq0 <- ggscatter(divs, x = "pq0", y = "q2", color = "Species_Scel",
    palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), 
-   xlab= "Diet phylogenetic diversity", ylab="Gut bacterial diversity (q=2)")+
-  theme(legend.title = element_blank(), legend.position = "bottom")
+   xlab= "Phylogenetic richness of diet (number of phylogenetic lineages)", 
+   ylab="Gut bacterial diversity (effective number of dominant ASVs)",
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")
+   )+
+  theme(legend.title = element_blank(), legend.position = "none")
 
 
 taxq1_tq0.sp <- ggscatter(divs, x = "tq0", y = "q1", color = "Species_Scel",
    palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), 
-   xlab= "Diet taxonomic diversity", ylab="Gut bacterial diversity (q=1)",
-   facet.by = "Species_Scel" #,
-   #add = "reg.line",  # Add regressin line
-   #add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
-   #conf.int = TRUE, # Add confidence interval
-   #cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
-   #cor.coeff.args = list(method = "spearman", label.x = 3, label.sep = "\n")
+   xlab= "Taxonomic richness of diet (number of taxonomic groups)", 
+   ylab="Gut bacterial diversity (effective number of frequent ASVs)",
+   facet.by = "Species_Scel",
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   cor.coeff.args = list(method = "pearson", 
+                         label.x = 3, label.sep = "\n")
    )+
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+        strip.text = element_text(face = "italic"))
+
 
 
 taxq2_tq0.sp <- ggscatter(divs, x = "tq0", y = "q2", color = "Species_Scel",
    palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), 
-   xlab= "Diet taxonomic diversity", ylab="Gut bacterial diversity (q=2)",
-   facet.by = "Species_Scel" #,
-   #add = "reg.line",  # Add regressin line
-   #add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
-   #conf.int = TRUE, # Add confidence interval
-   #cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
-   #cor.coeff.args = list(method = "spearman", label.x = 3, label.sep = "\n")
+   xlab= "Taxonomic richness of diet (number of taxonomic groups)", ylab="Gut bacterial diversity (effective number of dominant ASVs)",
+   facet.by = "Species_Scel" ,
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")
    )+
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+        strip.text = element_text(face = "italic"))
 
 
 phyq1_pq0.sp <- ggscatter(divs, x = "pq0", y = "q1", color = "Species_Scel",
    palette = c("#999999", "#E69F00", "#56B4E9", "#009E73") , 
-   xlab= " Diet phylogenetic diversity", ylab="Gut bacterial diversity (q=1)",
-   facet.by = "Species_Scel"#,
-   #add = "reg.line",  # Add regressin line
-   #add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
-   #conf.int = TRUE, # Add confidence interval
-   #cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
-   #cor.coeff.args = list(method = "spearman", label.x = 3, label.sep = "\n")
+   xlab= " Phylogenetic richness of diet (number of phylogenetic lineages)", ylab="Gut bacterial diversity (effective number of frequent ASVs)",
+   facet.by = "Species_Scel",
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")
    )+
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+        strip.text = element_text(face = "italic"))
 
 
 phyq2_pq0.sp <- ggscatter(divs, x = "pq0", y = "q2", color = "Species_Scel",
    palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), 
-   xlab= "Diet phylogenetic diversity", ylab="Gut bacterial diversity (q=2)", 
-   facet.by = "Species_Scel" #,
-   #add = "reg.line",  # Add regressin line
-   #add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
-   #conf.int = TRUE, # Add confidence interval
-   #cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
-   #cor.coeff.args = list(method = "spearman", label.x = 3, label.sep = "\n")
+   xlab= "Phylogenetic richness of diet (number of phylogenetic lineages)", ylab="Gut bacterial diversity (effective number of dominant ASVs)", 
+   facet.by = "Species_Scel" ,
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")
    )+
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+        strip.text = element_text(face = "italic"))
 
 taxq1_tq0
 taxq1_tq0.sp
@@ -472,16 +504,16 @@ phyq2_pq0.sp
 
 diet.vs.micro1<- plot_grid(taxq1_tq0, taxq1_tq0.sp, 
                           labels = "AUTO", ncol = 1)
-ggsave("../figures/dietvsmicro1.jpeg", width=8, height=9, dpi=300)
+#ggsave("../figures/dietvsmicro1.jpeg", width=8, height=11, dpi=300)
 diet.vs.micro2<- plot_grid(taxq2_tq0, taxq2_tq0.sp, 
-                          labels = "AUTO", ncol = 1)
-ggsave("../figures/dietvsmicro2.jpeg", width=8, height=9, dpi=300)
+                          labels = c("E","F"), ncol = 1)
+#ggsave("../figures/dietvsmicro2.jpeg", width=8, height=11, dpi=300)
 diet.vs.micro3<- plot_grid(phyq1_pq0, phyq1_pq0.sp, 
-                          labels = "AUTO", ncol = 1)
-ggsave("../figures/dietvsmicro3.jpeg", width=8, height=9, dpi=300)
+                          labels = c("C", "D"), ncol = 1)
+#ggsave("../figures/dietvsmicro3.jpeg", width=8, height=11, dpi=300)
 diet.vs.micro4<- plot_grid(phyq2_pq0, phyq2_pq0.sp, 
-                          labels = "AUTO", ncol = 1)
-ggsave("../figures/dietvsmicro4.jpeg", width=8, height=9, dpi=300)
+                          labels = c("G", "H"), ncol = 1)
+#ggsave("../figures/dietvsmicro4.jpeg", width=8, height=11, dpi=300)
 
 ```
 
