@@ -388,7 +388,7 @@ divs <- Micro_div %>%
 ##Plot
 
 taxq1_tq0 <- ggscatter(divs, x = "tq0", y = "q1", color = "Species_Scel",
-   palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), xlab= "Taxonomic richness of diet (number of taxonomic groups)", ylab="Gut bacterial diversity (effective number of frequent ASVs)",
+   palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), xlab= "Taxonomic richness of diet (number of taxonomic groups)", ylab="Gut bacterial diversity (effective number of common ASVs)",
    add = "reg.line",  # Add regressin line
    add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
    conf.int = TRUE, # Add confidence interval
@@ -412,7 +412,7 @@ taxq2_tq0 <- ggscatter(divs, x = "tq0", y = "q2", color = "Species_Scel",
 
 phyq1_pq0 <- ggscatter(divs, x = "pq0", y = "q1", color = "Species_Scel",
    palette = c("#999999", "#E69F00", "#56B4E9", "#009E73") , 
-   xlab= " Phylogenetic richness of diet (number of phylogenetic lineages)", ylab="Gut bacterial diversity (effective number of frequent ASVs)",
+   xlab= " Phylogenetic richness of diet (number of phylogenetic lineages)", ylab="Gut bacterial diversity (effective number of common ASVs)",
    add = "reg.line",  # Add regressin line
    add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
    conf.int = TRUE, # Add confidence interval
@@ -438,7 +438,7 @@ phyq2_pq0 <- ggscatter(divs, x = "pq0", y = "q2", color = "Species_Scel",
 taxq1_tq0.sp <- ggscatter(divs, x = "tq0", y = "q1", color = "Species_Scel",
    palette = c("#999999", "#E69F00", "#56B4E9", "#009E73"), 
    xlab= "Taxonomic richness of diet (number of taxonomic groups)", 
-   ylab="Gut bacterial diversity (effective number of frequent ASVs)",
+   ylab="Gut bacterial diversity (effective number of common ASVs)",
    facet.by = "Species_Scel",
    add = "reg.line",  # Add regressin line
    add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
@@ -468,7 +468,7 @@ taxq2_tq0.sp <- ggscatter(divs, x = "tq0", y = "q2", color = "Species_Scel",
 
 phyq1_pq0.sp <- ggscatter(divs, x = "pq0", y = "q1", color = "Species_Scel",
    palette = c("#999999", "#E69F00", "#56B4E9", "#009E73") , 
-   xlab= " Phylogenetic richness of diet (number of phylogenetic lineages)", ylab="Gut bacterial diversity (effective number of frequent ASVs)",
+   xlab= " Phylogenetic richness of diet (number of phylogenetic lineages)", ylab="Gut bacterial diversity (effective number of common ASVs)",
    facet.by = "Species_Scel",
    add = "reg.line",  # Add regressin line
    add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
